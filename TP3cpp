@@ -1,0 +1,401 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <memory>
+#include <algorithm>
+
+// ==========================================
+// 1. CLASSE ETUDIANT
+// ==========================================
+class Etudiant {
+private:
+    std::string id;
+    std::string nom;
+    std::string prenom;
+    std::string email;
+
+public:
+    Etudiant(std::string id, std::string nom, std::string prenom, std::string email)
+        : id(id), nom(nom), prenom(prenom), email(email) {}
+
+    std::string getId() const { return id; }
+    std::string getNom() const { return nom; }
+    std::string getPrenom() const { return prenom; }
+    std::string getEmail() const { return email; }
+
+    void afficher() const {
+        std::cout << "Étudiant [" << id << "] " << nom << " " << prenom << " (" << email << ")";
+    }
+};
+
+// ==========================================
+// 2. CLASSE CHAMBRE
+// ==========================================
+enum class EtatChambre { LIBRE, OCCUPEE, MAINTENANCE };
+
+class Chambre {
+private:
+    std::string numero;
+    int etage;
+    std::string type; // Ex: "Simple", "Double"
+    EtatChambre etat;
+
+public:
+    Chambre(std::string numero, int etage, std::string type)
+        : numero(numero), etage(etage), type(type), etat(EtatChambre::LIBRE) {}
+
+    std::string getNumero() const { return numero; }
+    int getEtage() const { return etage; }
+    std::string getType() const { return type; }
+    EtatChambre getEtat() const { return etat; }
+    
+    void setEtat(EtatChambre e) { etat = e; }
+
+    std::string getEtatString() const {
+        switch(etat) {
+            case EtatChambre::LIBRE: return "Libre";
+            case EtatChambre::OCCUPEE: return "Occupée";
+            case EtatChambre::MAINTENANCE: return "Maintenance";
+        }
+        return "Inconnu";
+    }
+
+    void afficher() const {
+        std::cout << "Chambre n° " << numero << " (Étage: " << etage << ", Type: " << type << ") - Statut: " << getEtatString() << std::endl;
+    }
+};
+
+// ==========================================
+// 3. CLASSE BATIMENT
+// ==========================================
+class Batiment {
+private:
+    std::string nom;
+    std::vector<Chambre> chambres;
+
+public:
+    Batiment(std::string nom) : nom(nom) {}
+
+    std::string getNom() const { return nom; }
+    void ajouterChambre(const Chambre& c) { chambres.push_back(c); }
+    
+    std::vector<Chambre>& getChambres() { return chambres; }
+    const std::vector<Chambre>& getChambres() const { return chambres; }
+
+    Chambre* trouverChambre(const std::string& numero) {
+        for (auto& c : chambres) {
+            if (c.getNumero() == numero) {
+                return &c;
+            }
+        }
+        return nullptr;
+    }
+
+    void afficher() const {
+        std::cout << "Bâtiment : " << nom << std::endl;
+        for (const auto& c : chambres) {
+            std::cout << "  - ";
+            c.afficher();
+        }
+    }
+};
+
+// ==========================================
+// 4. CLASSE DEMANDE D'HEBERGEMENT
+// ==========================================
+enum class StatutDemande { EN_ATTENTE, APPROUVEE, REJETEE };
+
+class DemandeHebergement {
+private:
+    std::string idDemande;
+    Etudiant etudiant;
+    std::string dateDemande;
+    StatutDemande statut;
+
+public:
+    DemandeHebergement(std::string id, const Etudiant& etu, std::string date)
+        : idDemande(id), etudiant(etu), dateDemande(date), statut(StatutDemande::EN_ATTENTE) {}
+
+    std::string getIdDemande() const { return idDemande; }
+    Etudiant getEtudiant() const { return etudiant; }
+    StatutDemande getStatut() const { return statut; }
+    void setStatut(StatutDemande s) { statut = s; }
+
+    std::string getStatutString() const {
+        switch(statut) {
+            case StatutDemande::EN_ATTENTE: return "En attente";
+            case StatutDemande::APPROUVEE: return "Approuvée";
+            case StatutDemande::REJETEE: return "Rejetée";
+        }
+        return "Inconnu";
+    }
+
+    void afficher() const {
+        std::cout << "Demande [" << idDemande << "] du " << dateDemande << " - Statut: " << getStatutString() << " | ";
+        etudiant.afficher();
+        std::cout << std::endl;
+    }
+};
+
+// ==========================================
+// 5. CLASSE ATTRIBUTION
+// ==========================================
+class Attribution {
+private:
+    std::string idAttribution;
+    Etudiant etudiant;
+    std::string numeroChambre;
+    std::string dateDebut;
+    std::string dateFin; // Vide si en cours
+    bool active;
+
+public:
+    Attribution(std::string id, const Etudiant& etu, std::string numChambre, std::string debut)
+        : idAttribution(id), etudiant(etu), numeroChambre(numChambre), dateDebut(debut), dateFin(""), active(true) {}
+
+    std::string getIdAttribution() const { return idAttribution; }
+    Etudiant getEtudiant() const { return etudiant; }
+    std::string getNumeroChambre() const { return numeroChambre; }
+    bool isActive() const { return active; }
+
+    void cloturer(std::string fin) {
+        dateFin = fin;
+        active = false;
+    }
+
+    void afficher() const {
+        std::cout << "Attribution [" << idAttribution << "] - Étudiant: " << etudiant.getNom() 
+                  << " -> Chambre: " << numeroChambre << " (Du " << dateDebut;
+        if (!active) {
+            std::cout << " au " << dateFin << " [Clôturée]";
+        } else {
+            std::cout << " [En cours]";
+        }
+        std::cout << ")" << std::endl;
+    }
+};
+
+// ==========================================
+// 6. CLASSE RESIDENCE (GESTIONNAIRE PRINCIPAL)
+// ==========================================
+class Residence {
+private:
+    std::string nom;
+    std::vector<Batiment> batiments;
+    std::vector<Etudiant> etudiants;
+    std::vector<DemandeHebergement> demandes;
+    std::vector<Attribution> attributions;
+
+public:
+    Residence(std::string nom) : nom(nom) {}
+
+    void ajouterBatiment(const Batiment& b) { batiments.push_back(b); }
+    void enregistrerEtudiant(const Etudiant& e) { etudiants.push_back(e); }
+
+    // 1. Enregistrer les demandes d'hébergement
+    void enregistrerDemande(const std::string& idDemande, const std::string& idEtudiant, const std::string& date) {
+        auto it = std::find_if(etudiants.begin(), etudiants.end(), [&](const Etudiant& e) {
+            return e.getId() == idEtudiant;
+        });
+        if (it != etudiants.end()) {
+            demandes.emplace_back(idDemande, *it, date);
+            std::cout << "[SUCCES] Demande " << idDemande << " enregistrée pour l'étudiant " << idEtudiant << "." << std::endl;
+        } else {
+            std::cout << "[ERREUR] Étudiant " << idEtudiant << " introuvable." << std::endl;
+        }
+    }
+
+    // 3. Vérifier les places disponibles
+    void verifierPlacesDisponibles() const {
+        int totalLibres = 0;
+        int totalChambres = 0;
+        for (const auto& b : batiments) {
+            for (const auto& c : b.getChambres()) {
+                totalChambres++;
+                if (c.getEtat() == EtatChambre::LIBRE) {
+                    totalLibres++;
+                }
+            }
+        }
+        std::cout << "--- Disponibilité des places (" << nom << ") ---" << std::endl;
+        std::cout << "Total des chambres : " << totalChambres << std::endl;
+        std::cout << "Chambres libres    : " << totalLibres << std::endl;
+    }
+
+    // 2. Attribuer une chambre à un étudiant (Évite les affectations multiples)
+    void attribuerChambre(const std::string& idDemande, const std::string& numeroChambre, const std::string& dateDebut) {
+        // Trouver la demande en attente
+        auto itDemande = std::find_if(demandes.begin(), demandes.end(), [&](const DemandeHebergement& d) {
+            return d.getIdDemande() == idDemande && d.getStatut() == StatutDemande::EN_ATTENTE;
+        });
+
+        if (itDemande == demandes.end()) {
+            std::cout << "[ERREUR] Demande " << idDemande << " introuvable ou déjà traitée." << std::endl;
+            return;
+        }
+
+        std::string idEtudiant = itDemande->getEtudiant().getId();
+
+        // RÈGLE : Vérifier si l'étudiant a déjà une attribution active (Éviter affectations multiples)
+        for (const auto& att : attributions) {
+            if (att.isActive() && att.getEtudiant().getId() == idEtudiant) {
+                std::cout << "[ERREUR] L'étudiant " << idEtudiant << " possède déjà une chambre active (" << att.getNumeroChambre() << ")." << std::endl;
+                return;
+            }
+        }
+
+        // Trouver la chambre cible
+        Chambre* chambreCible = nullptr;
+        for (auto& b : batiments) {
+            chambreCible = b.trouverChambre(numeroChambre);
+            if (chambreCible != nullptr) break;
+        }
+
+        if (chambreCible == nullptr) {
+            std::cout << "[ERREUR] Chambre " << numeroChambre << " introuvable." << std::endl;
+            return;
+        }
+
+        if (chambreCible->getEtat() != EtatChambre::LIBRE) {
+            std::cout << "[ERREUR] La chambre " << numeroChambre << " n'est pas libre (État actuel : " << chambreCible->getEtatString() << ")." << std::endl;
+            return;
+        }
+
+        // Valider l'attribution
+        chambreCible->setEtat(EtatChambre::OCCUPEE);
+        itDemande->setStatut(StatutDemande::APPROUVEE);
+        
+        std::string idAttribution = "ATT_" + std::to_string(attributions.size() + 1);
+        attributions.emplace_back(idAttribution, itDemande->getEtudiant(), numeroChambre, dateDebut);
+
+        std::cout << "[SUCCES] Chambre " << numeroChambre << " attribuée avec succès à l'étudiant " << idEtudiant << "." << std::endl;
+    }
+
+    // 4. Enregistrer les départs
+    void enregistrerDepart(const std::string& idEtudiant, const std::string& dateFin) {
+        bool trouve = false;
+        for (auto& att : attributions) {
+            if (att.isActive() && att.getEtudiant().getId() == idEtudiant) {
+                att.cloturer(dateFin);
+                // Libérer la chambre correspondante
+                for (auto& b : batiments) {
+                    Chambre* c = b.trouverChambre(att.getNumeroChambre());
+                    if (c != nullptr) {
+                        c->setEtat(EtatChambre::LIBRE);
+                        break;
+                    }
+                }
+                trouve = true;
+                std::cout << "[SUCCES] Départ enregistré pour l'étudiant " << idEtudiant << ". Chambre " << att.getNumeroChambre() << " libérée." << std::endl;
+                break;
+            }
+        }
+        if (!trouve) {
+            std::cout << "[ERREUR] Aucune attribution active trouvée pour l'étudiant " << idEtudiant << "." << std::endl;
+        }
+    }
+
+    // 5. Consulter les chambres occupées et libres
+    void consulterChambres() const {
+        std::cout << "\n=== Consultation des Chambres (" << nom << ") ===" << std::endl;
+        for (const auto& b : batiments) {
+            b.afficher();
+        }
+    }
+
+    // 6. Consulter l'historique des occupations
+    void consulterHistorique() const {
+        std::cout << "\n=== Historique des Occupations ===" << std::endl;
+        if (attributions.empty()) {
+            std::cout << "Aucun historique d'attribution." << std::endl;
+            return;
+        }
+        for (const auto& att : attributions) {
+            att.afficher();
+        }
+    }
+
+    // Extension : Calcul du taux d'occupation et statistiques
+    void afficherStatistiques() const {
+        int totalChambres = 0;
+        int chambresOccupees = 0;
+        int chambresLibres = 0;
+        int chambresMaintenance = 0;
+
+        for (const auto& b : batiments) {
+            for (const auto& c : b.getChambres()) {
+                totalChambres++;
+                if (c.getEtat() == EtatChambre::OCCUPEE) chambresOccupees++;
+                else if (c.getEtat() == EtatChambre::LIBRE) chambresLibres++;
+                else if (c.getEtat() == EtatChambre::MAINTENANCE) chambresMaintenance++;
+            }
+        }
+
+        double tauxOccupation = (totalChambres > 0) ? ((double)chambresOccupees / totalChambres) * 100.0 : 0.0;
+
+        std::cout << "\n=== Statistiques de la Résidence : " << nom << " ===" << std::endl;
+        std::cout << "- Nombre total de chambres : " << totalChambres << std::endl;
+        std::cout << "- Chambres occupées        : " << chambresOccupees << std::endl;
+        std::cout << "- Chambres libres          : " << chambresLibres << std::endl;
+        std::cout << "- Chambres en maintenance  : " << chambresMaintenance << std::endl;
+        std::cout << "- Taux d'occupation        : " << tauxOccupation << " %" << std::endl;
+        std::cout << "- Étudiants enregistrés    : " << etudiants.size() << std::endl;
+        std::cout << "- Demandes d'hébergement   : " << demandes.size() << std::endl;
+    }
+};
+
+// ==========================================
+// 7. FONCTION PRINCIPALE (TESTS DU SYSTEME)
+// ==========================================
+int main() {
+    // 1. Initialisation de la Résidence
+    Residence residenceU("Résidence Universitaire Campus Principal");
+
+    // 2. Création de bâtiments et de chambres
+    Batiment batA("Bâtiment A");
+    batA.ajouterChambre(Chambre("A101", 1, "Simple"));
+    batA.ajouterChambre(Chambre("A102", 1, "Simple"));
+    batA.ajouterChambre(Chambre("A201", 2, "Double"));
+
+    Batiment batB("Bâtiment B");
+    batB.ajouterChambre(Chambre("B101", 1, "Simple"));
+
+    residenceU.ajouterBatiment(batA);
+    residenceU.ajouterBatiment(batB);
+
+    // 3. Enregistrement des étudiants
+    residenceU.enregistrerEtudiant(Etudiant("E001", "Dupont", "Jean", "jean.dupont@univ.fr"));
+    residenceU.enregistrerEtudiant(Etudiant("E002", "Martin", "Alice", "alice.martin@univ.fr"));
+    residenceU.enregistrerEtudiant(Etudiant("E003", "Durand", "Paul", "paul.durand@univ.fr"));
+
+    // Affichage initial
+    residenceU.consulterChambres();
+    residenceU.verifierPlacesDisponibles();
+
+    std::cout << "\n--- TEST : Enregistrement des demandes ---" << std::endl;
+    residenceU.enregistrerDemande("D01", "E001", "10/09/2026");
+    residenceU.enregistrerDemande("D02", "E002", "11/09/2026");
+
+    std::cout << "\n--- TEST : Attribution de chambres ---" << std::endl;
+    residenceU.attribuerChambre("D01", "A101", "15/09/2026"); // Succès
+
+    // Test de la règle : éviter les affectations multiples pour le même étudiant
+    std::cout << "\n--- TEST DE SECURITE : Affectation multiple (E001) ---" << std::endl;
+    residenceU.enregistrerDemande("D03", "E001", "12/09/2026");
+    residenceU.attribuerChambre("D03", "A102", "15/09/2026"); // Devrait échouer
+
+    // Attribution normale pour E002
+    residenceU.attribuerChambre("D02", "A102", "15/09/2026"); // Succès
+
+    // Statistiques après attributions
+    residenceU.afficherStatistiques();
+
+    std::cout << "\n--- TEST : Enregistrement d'un départ ---" << std::endl;
+    residenceU.enregistrerDepart("E001", "30/06/2027");
+
+    // Consultation de l'historique et des statistiques actualisées
+    residenceU.consulterHistorique();
+    residenceU.afficherStatistiques();
+
+    return 0;
+}
